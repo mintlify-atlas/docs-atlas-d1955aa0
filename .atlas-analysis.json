@@ -1,0 +1,89 @@
+{
+  "projectType": "general",
+  "projectName": "Book Store API Automation Testing",
+  "projectDescription": "A BDD API test automation framework built with Rest Assured and Cucumber that validates Place Management REST API endpoints for Add, Get, and Delete operations.",
+  "theme": "linden",
+  "primaryColor": "#b21216",
+  "lightColor": "#945354",
+  "darkColor": "#d7c5c6",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Framework Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/project-structure",
+              "architecture/tech-stack"
+            ]
+          },
+          {
+            "group": "Core Components",
+            "pages": [
+              "components/pojo-classes",
+              "components/api-resources",
+              "components/test-data-builder",
+              "components/utils",
+              "components/step-definitions",
+              "components/hooks",
+              "components/test-runner"
+            ]
+          },
+          {
+            "group": "Test Scenarios",
+            "pages": [
+              "tests/feature-files",
+              "tests/add-place",
+              "tests/delete-place",
+              "tests/tags-and-filtering"
+            ]
+          },
+          {
+            "group": "Running & Reporting",
+            "pages": [
+              "running/setup",
+              "running/run-tests",
+              "running/reports",
+              "running/logging"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/api-endpoints",
+              "reference/configuration",
+              "reference/known-issues"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "BDD-driven test scenarios written in plain English Gherkin syntax",
+    "Rest Assured HTTP client for API request/response validation",
+    "Cucumber Scenario Outline for data-driven testing",
+    "Automatic request/response logging to file",
+    "Rich HTML test reports via Maven Cucumber Reporting plugin",
+    "Reusable RequestSpecification with singleton pattern",
+    "Hooks for independent scenario execution (Delete runs without Add)",
+    "Jackson Databind POJO serialization for request body construction"
+  ],
+  "publicApiSurface": [
+    "POST /maps/api/place/add/json — Add a new place",
+    "GET /maps/api/place/get/json — Retrieve a place by place_id",
+    "POST /maps/api/place/delete/json — Delete a place by place_id",
+    "APIResources enum: addPlaceAPI, getPlaceAPI, deletePlaceAPI",
+    "Utils.requestSpecification() — Shared base request spec",
+    "Utils.getJsonPath(Response, String) — Extract JSON fields from responses",
+    "TestDataBuild.addPlacePayload(name, language, address) — Build Add Place request body",
+    "TestDataBuild.deletePlacePayload(place_id) — Build Delete Place request body",
+    "Cucumber tags: @AddPlace, @DeletePlace, @Regression"
+  ]
+}
