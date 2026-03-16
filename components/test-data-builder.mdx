@@ -1,0 +1,130 @@
+---
+title: 'Test data builder'
+description: 'TestDataBuild constructs request payloads for Add Place and Delete Place, separating static default values from dynamic test-supplied values.'
+---
+
+`TestDataBuild` is a builder class that assembles the request bodies used in step definitions. It keeps payload construction out of the step definition methods, making the Gherkin steps cleaner and the data easier to change.
+
+## Methods
+
+### `addPlacePayload(String name, String language, String address)`
+
+Builds and returns a fully populated `AddPlace` POJO. Three fields come from the Gherkin scenario; the rest are hardcoded defaults.
+
+```java
+public AddPlace addPlacePayload(String name, String language, String address) {
+    addPlace.setAccuracy(50);
+    addPlace.setAddress(address);
+    addPlace.setLanguage(language);
+    addPlace.setName(name);
+    addPlace.setPhoneNumber("+20 1234567890");
+    addPlace.setWebsite("https://rahulshettyacademy.com");
+
+    List<String> typesList = new ArrayList<>();
+    typesList.add("home");
+    typesList.add("house");
+    addPlace.setTypes(typesList);
+
+    Location location = new Location();
+    location.setLat(-40.123456);
+    location.setLng(40.987654);
+    addPlace.setLocation(location);
+
+    return addPlace;
+}
+```
+
+#### Static vs dynamic fields
+
+| Field | Value | Source |
+|---|---|---|
+| `accuracy` | `50` | Static default |
+| `phone_number` | `"+20 1234567890"` | Static default |
+| `website` | `"https://rahulshettyacademy.com"` | Static default |
+| `types` | `["home", "house"]` | Static default |
+| `location.lat` | `-40.123456` | Static default |
+| `location.lng` | `40.987654` | Static default |
+| `name` | Gherkin scenario value | Dynamic — passed by the step |
+| `language` | Gherkin scenario value | Dynamic — passed by the step |
+| `address` | Gherkin scenario value | Dynamic — passed by the step |
+
+### `deletePlacePayload(String place_id)`
+
+Returns a raw JSON string for the Delete Place request body. This method does not use a POJO — it builds the string directly:
+
+```java
+public String deletePlacePayload(String place_id) {
+    return "{\r\n\t\"place_id\":\"" + place_id + "\"\r\n}";
+}
+```
+
+The resulting JSON looks like this:
+
+```json
+{
+    "place_id": "<place_id value>"
+}
+```
+
+The `place_id` value is sourced from `StepDefinition.place_id`, which is captured after a successful Add Place call.
+
+## How the builder is used in StepDefinition
+
+`StepDefinition` declares an instance of `TestDataBuild` and calls these methods from the `@Given` steps:
+
+```java
+TestDataBuild data = new TestDataBuild();
+
+@Given("add Place Payload with {string} {string} {string}")
+public void add_place_payload_with(String name, String language, String address) throws IOException {
+    requestAdd = given().spec(requestSpecification())
+        .body(data.addPlacePayload(name, language, address));
+}
+
+@Given("DeletePlace Payload")
+public void delete_place_payload() throws IOException {
+    requestAdd = given().spec(requestSpecification())
+        .body(data.deletePlacePayload(place_id));
+}
+```
+
+## Full source code
+
+```java TestDataBuild.java
+package resources;
+
+import pojo.AddPlace;
+import pojo.Location;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TestDataBuild {
+    
+    AddPlace addPlace = new AddPlace();
+    
+    public AddPlace addPlacePayload(String name, String language, String address) {
+        addPlace.setAccuracy(50);
+        addPlace.setAddress(address);
+        addPlace.setLanguage(language);
+        addPlace.setName(name);
+        addPlace.setPhoneNumber("+20 1234567890");
+        addPlace.setWebsite("https://rahulshettyacademy.com");
+
+        List<String> typesList = new ArrayList<>();
+        typesList.add("home");
+        typesList.add("house");
+        addPlace.setTypes(typesList);
+
+        Location location = new Location();
+        location.setLat(-40.123456);
+        location.setLng(40.987654);
+        addPlace.setLocation(location);
+
+        return addPlace;
+    }
+
+    public String deletePlacePayload(String place_id) {
+        return "{\r\n\t\"place_id\":\"" + place_id + "\"\r\n}";
+    }
+}
+```

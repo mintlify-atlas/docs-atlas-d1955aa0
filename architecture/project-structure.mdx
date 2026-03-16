@@ -1,0 +1,208 @@
+---
+title: 'Project structure'
+description: 'Directory layout of the Book Store API Automation Testing project, with the purpose of every key file explained.'
+---
+
+The project follows the standard Maven directory layout. Test resources, feature files, and step definitions live under `src/test`, while shared model classes live under `src/main`.
+
+## Directory tree
+
+```text
+Book-Store-API-Automation-Testing-Rest-Assured/
+├── src/
+│   ├── main/
+│   │   └── java/
+│   │       └── pojo/
+│   │           ├── AddPlace.java
+│   │           └── Location.java
+│   └── test/
+│       └── java/
+│           ├── cucumber/
+│           │   └── Options/
+│           │       └── TestRunner.java
+│           ├── features/
+│           │   └── placeValidations.feature
+│           ├── resources/
+│           │   ├── APIResources.java
+│           │   ├── TestDataBuild.java
+│           │   ├── Utils.java
+│           │   └── global.properties
+│           └── stepDefinitions/
+│               ├── StepDefinition.java
+│               └── Hooks.java
+├── target/
+│   ├── jsonReports/
+│   │   └── cucumber-report.json
+│   └── cucumber-html-reports/
+├── logging.txt
+├── pom.xml
+└── README.md
+```
+
+## Key file reference
+
+| File | Location | Role |
+|------|----------|------|
+| `TestRunner.java` | `cucumber/Options/` | Entry point — configures and launches the Cucumber test run |
+| `placeValidations.feature` | `features/` | All Gherkin scenarios for the Place Management API |
+| `StepDefinition.java` | `stepDefinitions/` | Glue code binding Gherkin steps to Java methods |
+| `Hooks.java` | `stepDefinitions/` | `@Before` hook that seeds test data for the Delete scenario |
+| `Utils.java` | `resources/` | Shared `RequestSpecification` with base URL and logging |
+| `TestDataBuild.java` | `resources/` | Builds typed request payload objects |
+| `APIResources.java` | `resources/` | Enum of all endpoint path strings |
+| `global.properties` | `resources/` | Externalised configuration (base URL) |
+| `AddPlace.java` | `pojo/` | POJO model for the Add Place request body |
+| `Location.java` | `pojo/` | POJO model for the nested lat/lng coordinate object |
+| `pom.xml` | root | Maven build, dependency, and plugin configuration |
+| `logging.txt` | root | Auto-generated request/response log from Rest Assured |
+| `cucumber-report.json` | `target/jsonReports/` | Raw Cucumber JSON output consumed by the reporting plugin |
+| `cucumber-html-reports/` | `target/` | Generated HTML test report |
+
+## Directory sections
+
+<AccordionGroup>
+  <Accordion title="src/main/java/pojo — Request model classes">
+    Contains plain Java objects that represent API request bodies. Maven compiles these to the main classpath so they are available to both production and test code.
+
+    **`AddPlace.java`**
+
+    Models the full Add Place request body. Fields include `name`, `address`, `language`, `types` (a list), `website`, `phone_number`, and a nested `Location` object. Jackson Databind serializes an instance of this class to the JSON payload sent by Rest Assured.
+
+    **`Location.java`**
+
+    Models the geographic coordinates nested inside an `AddPlace` request. Contains `lat` and `lng` double fields.
+
+    ```java
+    // Location.java — simplified
+    public class Location {
+        private double lat;
+        private double lng;
+        // getters and setters
+    }
+    ```
+
+    <Note>
+    Both classes require standard JavaBean getters and setters. Jackson uses them during serialization. Missing getters will produce an empty JSON object at runtime.
+    </Note>
+  </Accordion>
+
+  <Accordion title="src/test/java/cucumber/Options — Test runner">
+    **`TestRunner.java`**
+
+    The single JUnit entry point for the entire test suite. The `@RunWith(Cucumber.class)` annotation delegates execution to Cucumber's JUnit runner. The `@CucumberOptions` annotation configures:
+
+    - **`features`** — path to the `.feature` files directory
+    - **`glue`** — package(s) Cucumber scans for step definitions and hooks
+    - **`plugin`** — output formatters, including the JSON reporter that writes `cucumber-report.json`
+    - **`monochrome`** — cleaner console output
+
+    ```java
+    @RunWith(Cucumber.class)
+    @CucumberOptions(
+        features = "src/test/java/features",
+        glue = "stepDefinitions",
+        plugin = {
+            "pretty",
+            "json:target/jsonReports/cucumber-report.json"
+        },
+        monochrome = true
+    )
+    public class TestRunner {
+    }
+    ```
+
+    To run only a subset of scenarios, add a `tags` option such as `tags = "@smoke"`.
+  </Accordion>
+
+  <Accordion title="src/test/java/features — Gherkin scenarios">
+    **`placeValidations.feature`**
+
+    Contains all BDD scenarios that exercise the Place Management API. Scenarios cover three operations:
+
+    - **Add Place** — POST to `/maps/api/place/add/json`, assert HTTP 200 and a non-null `place_id` in the response body.
+    - **Get Place** — GET to `/maps/api/place/get/json` using the `place_id` returned by Add Place, assert the name matches what was submitted.
+    - **Delete Place** — POST to `/maps/api/place/delete/json` with a `place_id`, assert HTTP 200 and status `OK`.
+
+    Parameterised data (place name, address, city) is passed directly in Gherkin step text and captured by regex in step definitions.
+
+    <Tip>
+    Add new scenarios here first. Writing the Gherkin before implementing the step definitions keeps the framework behaviour-driven.
+    </Tip>
+  </Accordion>
+
+  <Accordion title="src/test/java/resources — Utilities and configuration">
+    **`Utils.java`**
+
+    Reads `global.properties` at class load time to obtain the base URL. Exposes a static method that returns a fully configured `RequestSpecification` with JSON content-type headers and a logging filter. All step definitions obtain their `RequestSpecification` from this class.
+
+    **`TestDataBuild.java`**
+
+    Contains builder methods, one per request type. Each method accepts test-specific parameters (name, address, city) as arguments, assembles a POJO graph, and returns it. This isolates payload construction from assertion logic in step definitions.
+
+    **`APIResources.java`**
+
+    An enum where each constant holds the URL path for one endpoint:
+
+    ```java
+    public enum APIResources {
+        AddPlace("/maps/api/place/add/json"),
+        GetPlace("/maps/api/place/get/json"),
+        DeletePlace("/maps/api/place/delete/json");
+
+        private String resource;
+
+        APIResources(String resource) {
+            this.resource = resource;
+        }
+
+        public String getResource() {
+            return resource;
+        }
+    }
+    ```
+
+    **`global.properties`**
+
+    Externalises the base URL so tests can be pointed at different environments without recompiling:
+
+    ```properties
+    baseUrl=https://rahulshettyacademy.com
+    ```
+  </Accordion>
+
+  <Accordion title="src/test/java/stepDefinitions — Glue code">
+    **`StepDefinition.java`**
+
+    Each public method is annotated with a Cucumber annotation (`@Given`, `@When`, `@Then`, `@And`) whose string value is a regex that Cucumber matches against scenario steps. Methods call `Utils.java` to get a request spec, call `TestDataBuild.java` to get a payload, use `APIResources.java` to resolve the URL, and use Rest Assured's fluent DSL to dispatch the request and assert the response.
+
+    Shared state between steps (such as the `place_id` extracted from the Add Place response) is stored in instance variables on the class. Cucumber instantiates a new `StepDefinition` object for each scenario, so state does not leak between scenarios.
+
+    **`Hooks.java`**
+
+    Contains a single `@Before` hook tagged to run before the Delete scenario. It calls the Add Place endpoint to create the resource that the Delete scenario will remove, storing the returned `place_id` in a location accessible to the step definitions.
+
+    <Note>
+    `Hooks.java` and `StepDefinition.java` must be in the same package (or a sub-package) declared in the `glue` path of `TestRunner.java`, otherwise Cucumber will not register them.
+    </Note>
+  </Accordion>
+
+  <Accordion title="target — Build and report output">
+    The `target/` directory is created by Maven during the build and is excluded from version control.
+
+    - **`target/jsonReports/cucumber-report.json`** — raw Cucumber JSON output written by the `json` plugin configured in `TestRunner.java`. This file is consumed by the Maven Cucumber Reporting plugin.
+    - **`target/cucumber-html-reports/`** — HTML report generated by the Maven Cucumber Reporting plugin after the test run. Open `overview-features.html` in a browser to view results.
+    - **`logging.txt`** (project root) — Rest Assured's logging filter writes each request and response here. Useful for debugging failing scenarios without re-running the suite.
+  </Accordion>
+</AccordionGroup>
+
+## Finding things quickly
+
+| Task | Where to look |
+|------|---------------|
+| Add or edit a test scenario | `src/test/java/features/placeValidations.feature` |
+| Implement a new step | `src/test/java/stepDefinitions/StepDefinition.java` |
+| Change the base URL | `src/test/java/resources/global.properties` |
+| Add a new endpoint | `src/test/java/resources/APIResources.java` |
+| Modify request payload structure | `src/main/java/pojo/AddPlace.java` or `Location.java` |
+| Update payload builder logic | `src/test/java/resources/TestDataBuild.java` |
+| Configure test tags or reporters | `src/test/java/cucumber/Options/TestRunner.java` |

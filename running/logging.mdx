@@ -1,0 +1,96 @@
+---
+title: 'Logging'
+description: 'How the framework logs every HTTP request and response to logging.txt, and how to use that file to debug test failures.'
+---
+
+Every HTTP request and response is automatically written to `logging.txt` in the project root. No test code needs to call a logger — the filters in `Utils.java` capture everything transparently.
+
+## Logging setup
+
+Logging is configured once in `Utils.java` when the shared `RequestSpecification` is built:
+
+```java
+PrintStream log = new PrintStream(new FileOutputStream("logging.txt"));
+req = new RequestSpecBuilder()
+    .setBaseUri(getGlobalValue("baseURL"))
+    .addFilter(RequestLoggingFilter.logRequestTo(log))
+    .addFilter(ResponseLoggingFilter.logResponseTo(log))
+    .addQueryParam("key", "qaclick123")
+    .setContentType(ContentType.JSON)
+    .build();
+```
+
+- **`RequestLoggingFilter`** — captures the outgoing request method, URI, headers, and body before it is sent.
+- **`ResponseLoggingFilter`** — captures the response status line, headers, and body after it is received.
+- Both filters write to the same `PrintStream`, so request and response appear together in order in `logging.txt`.
+
+## Log file location and lifecycle
+
+- **Path:** `logging.txt` in the project root directory (next to `pom.xml`).
+- **Overwritten on every run.** `new FileOutputStream("logging.txt")` without the append flag truncates the file at the start of each test run. Previous log content is not preserved.
+
+<Warning>
+  If you need to retain logs from a previous run, copy `logging.txt` to another location before running the tests again.
+</Warning>
+
+## What each log entry contains
+
+Each request/response pair produces a block like this:
+
+```
+Request method:  POST
+Request URI:     https://rahulshettyacademy.com/maps/api/place/add/json?key=qaclick123
+Headers:         Content-Type=application/json; charset=UTF-8
+                 Accept=*/*
+
+Request body:
+{
+    "accuracy": 50,
+    "name": "AHouse",
+    "phone_number": "+20 1234567890",
+    "address": "World Cross Center",
+    "website": "https://rahulshettyacademy.com",
+    "language": "English",
+    "location": {
+        "lat": -40.123456,
+        "lng": 40.987654
+    },
+    "types": ["home", "house"]
+}
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+Response body:
+{
+    "status": "OK",
+    "place_id": "c90f6fa898d64b3e9523d025ede47c00",
+    "scope": "APP",
+    "reference": "...",
+    "id": "..."
+}
+```
+
+| Field | Description |
+|---|---|
+| `Request method` | HTTP verb (`GET`, `POST`, `DELETE`) |
+| `Request URI` | Full URL including query parameters |
+| `Headers` | All request headers sent |
+| `Request body` | Serialized JSON payload (absent for GET and DELETE requests) |
+| `HTTP/1.1 ...` | Response status line |
+| `Response body` | Full JSON response from the server |
+
+## Using logging.txt to debug failures
+
+When a scenario fails, `logging.txt` is the first place to look.
+
+<Tip>
+  A failing assertion like `expected: OK but was: ZERO_RESULTS` is easier to diagnose when you can see the exact URL and body that were sent. Open `logging.txt` immediately after a failure and verify the request URI, query parameters, and body match what the API expects.
+</Tip>
+
+Common failure patterns visible in the log:
+
+- **Wrong base URL** — the URI shows a different host than expected, indicating `global.properties` has the wrong value or was not loaded.
+- **Missing or malformed request body** — the `Request body` block is empty or contains `null` fields, pointing to a POJO serialization issue in `TestDataBuild.java`.
+- **Unexpected response status** — a `4xx` or `5xx` status line in the response points to an authentication, routing, or server-side problem rather than a test defect.
+- **Empty response body** — indicates the API returned no content, often caused by a wrong endpoint path in `APIResources.java`.

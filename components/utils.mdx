@@ -1,0 +1,131 @@
+---
+title: 'Utils'
+description: 'Utils provides shared infrastructure for all step definitions: a singleton request specification, a global properties reader, and a JSON path extractor.'
+---
+
+`Utils` is the base class extended by `StepDefinition`. It supplies three utilities used across every test: a reusable Rest Assured request specification, a properties file reader, and a JSON response extractor.
+
+## `requestSpecification()`
+
+Builds and returns a `RequestSpecification` configured with the base URL, logging filters, the API key query parameter, and JSON content type.
+
+```java
+public RequestSpecification requestSpecification() throws IOException {
+    if (req == null) {
+        PrintStream log = new PrintStream(new FileOutputStream("logging.txt"));
+        req = new RequestSpecBuilder()
+            .setBaseUri(getGlobalValue("baseURL"))
+            .addFilter(RequestLoggingFilter.logRequestTo(log))
+            .addFilter(ResponseLoggingFilter.logResponseTo(log))
+            .addQueryParam("key", "qaclick123")
+            .setContentType(ContentType.JSON)
+            .build();
+        return req;
+    } else {
+        return req;
+    }
+}
+```
+
+<Note>
+The static field `req` implements a singleton pattern. The specification is built once on the first call and reused for all subsequent calls in the same test run. This avoids recreating the spec (and reopening the log file) for every step that needs it.
+</Note>
+
+### Fields set on the specification
+
+| Setting | Value | Source |
+|---|---|---|
+| Base URI | Value of `baseURL` property | `global.properties` |
+| Request logging | Writes to `logging.txt` | `RequestLoggingFilter` |
+| Response logging | Writes to `logging.txt` | `ResponseLoggingFilter` |
+| Query parameter `key` | `qaclick123` | Hardcoded |
+| Content type | `application/json` | `ContentType.JSON` |
+
+### Logging filters
+
+`RequestLoggingFilter` and `ResponseLoggingFilter` write every request and response to `logging.txt` in the project root. This file is useful for diagnosing failures without adding debug statements to step definitions.
+
+## `getGlobalValue(String key)`
+
+Reads a property from `global.properties` and returns its value as a string.
+
+```java
+public static String getGlobalValue(String key) throws IOException {
+    Properties prop = new Properties();
+    FileInputStream file = new FileInputStream(
+        "C:\\Users\\a\\eclipse-workspace\\APIFramework\\src\\test\\java\\resources\\global.properties"
+    );
+    prop.load(file);
+    return prop.getProperty(key);
+}
+```
+
+<Warning>
+The file path passed to `FileInputStream` is hardcoded to a specific Windows user directory (`C:\Users\a\eclipse-workspace\...`). This will fail on any other machine or operating system. Replace it with a path relative to the project root or resolve it via `System.getProperty("user.dir")` before running tests on a different machine.
+</Warning>
+
+## `getJsonPath(Response, String)`
+
+Extracts a value from a Rest Assured `Response` object by JSON key.
+
+```java
+public String getJsonPath(Response response, String key) {
+    String resp = response.asString();
+    JsonPath js = new JsonPath(resp);
+    return js.get(key).toString();
+}
+```
+
+The method converts the response body to a string, parses it with `JsonPath`, and returns the value at `key` as a string. Step definitions use this to read `place_id`, `name`, and `status` from API responses.
+
+## Full source code
+
+```java Utils.java
+package resources;
+
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.filter.log.RequestLoggingFilter;
+import io.restassured.filter.log.ResponseLoggingFilter;
+import io.restassured.http.ContentType;
+import io.restassured.path.json.JsonPath;
+import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Properties;
+
+public class Utils {
+    
+    static RequestSpecification req;
+    
+    public RequestSpecification requestSpecification() throws IOException {
+        if(req==null) {
+            PrintStream log = new PrintStream(new FileOutputStream("logging.txt"));
+            req = new RequestSpecBuilder().setBaseUri(getGlobalValue("baseURL"))
+            .addFilter(RequestLoggingFilter.logRequestTo(log))
+            .addFilter(ResponseLoggingFilter.logResponseTo(log)).addQueryParam("key", "qaclick123")
+            .setContentType(ContentType.JSON).build();
+            return req;
+        }
+        else{
+            return req;
+        }
+    }
+    
+    public static String getGlobalValue(String key) throws IOException {
+        Properties prop = new Properties();
+        FileInputStream file = new FileInputStream("C:\\Users\\a\\eclipse-workspace\\APIFramework\\src\\test\\java\\resources\\global.properties");
+        prop.load(file);
+        return prop.getProperty(key);
+    }
+    
+    public String getJsonPath(Response response, String key) {
+        String resp = response.asString();
+        JsonPath js = new JsonPath(resp);
+        return js.get(key).toString();
+    }
+}
+```

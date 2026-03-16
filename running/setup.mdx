@@ -1,0 +1,115 @@
+---
+title: 'Setup and prerequisites'
+description: 'Everything you need to install and configure before running the framework for the first time.'
+---
+
+The framework requires Java, Maven, and an IDE to build and execute tests. Follow these steps from a clean machine to get a working test run.
+
+## System requirements
+
+| Requirement | Minimum version | Notes |
+|---|---|---|
+| Java JDK | 8 | JDK, not just JRE |
+| Maven | 3.x | Any 3.x release |
+| IDE | — | Eclipse or IntelliJ IDEA |
+| Internet access | — | Required to reach `https://rahulshettyacademy.com` |
+
+<Steps>
+  <Step title="Verify Java and Maven">
+    Confirm both tools are on your `PATH` before proceeding.
+
+    ```bash
+    java -version
+    mvn -version
+    ```
+
+    Both commands must return a version string without errors. If either fails, install or add the tool to your `PATH` before continuing.
+  </Step>
+
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/Mahmoud-MohamedSamy/Book-Store-API-Automation-Testing-Rest-Assured.git
+    cd Book-Store-API-Automation-Testing-Rest-Assured
+    ```
+  </Step>
+
+  <Step title="Import into your IDE">
+    <Tabs>
+      <Tab title="Eclipse">
+        1. Open Eclipse.
+        2. Select **File → Import**.
+        3. Choose **Maven → Existing Maven Projects** and click **Next**.
+        4. Set **Root Directory** to the cloned folder.
+        5. Confirm `pom.xml` is listed, then click **Finish**.
+
+        Eclipse downloads all dependencies declared in `pom.xml` and builds the project index automatically.
+      </Tab>
+      <Tab title="IntelliJ IDEA">
+        1. Open IntelliJ IDEA.
+        2. Click **Open** on the welcome screen.
+        3. Navigate to the cloned folder, select `pom.xml`, and click **Open**.
+        4. When prompted, choose **Open as Project**.
+
+        IntelliJ imports the Maven project and resolves all dependencies. Wait for the indexing indicator in the status bar to finish.
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Fix the hardcoded path in Utils.java">
+    `Utils.java` reads `global.properties` to load the base URL. The original source contains a hardcoded Windows path that will cause a `FileNotFoundException` on any other machine.
+
+    <Warning>
+      The hardcoded path below must be replaced before running the framework on any machine other than the original author's. If you skip this step, every test will fail at startup with `FileNotFoundException`.
+    </Warning>
+
+    **Find and replace this line in `Utils.java`:**
+
+    ```java
+    // BAD — hardcoded, machine-specific
+    FileInputStream file = new FileInputStream(
+        "C:\\Users\\a\\eclipse-workspace\\APIFramework\\src\\test\\java\\resources\\global.properties"
+    );
+    ```
+
+    Replace it with:
+
+    ```java
+    // GOOD — portable, works on any machine
+    FileInputStream file = new FileInputStream(
+        System.getProperty("user.dir") + "/src/test/java/resources/global.properties"
+    );
+    ```
+
+    `System.getProperty("user.dir")` resolves to the Maven project root at runtime, making the path work on Windows, macOS, and Linux without modification.
+  </Step>
+
+  <Step title="Verify global.properties exists">
+    Confirm the configuration file is present at the expected location:
+
+    ```
+    src/test/java/resources/global.properties
+    ```
+
+    The file should contain:
+
+    ```properties
+    baseURL=https://rahulshettyacademy.com
+    ```
+
+    If the file is missing, create it at that path with the line above.
+  </Step>
+
+  <Step title="Install dependencies">
+    Download all Maven dependencies without running the tests:
+
+    ```bash
+    mvn clean install -DskipTests
+    ```
+
+    A successful run ends with `BUILD SUCCESS`. All JAR files are downloaded to your local Maven repository (`~/.m2/repository`). Subsequent runs do not re-download unless the `pom.xml` changes.
+  </Step>
+</Steps>
+
+<Note>
+  After completing these steps, proceed to [run tests](/running/run-tests) to execute the full suite for the first time.
+</Note>

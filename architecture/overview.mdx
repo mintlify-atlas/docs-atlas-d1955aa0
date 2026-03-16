@@ -1,0 +1,113 @@
+---
+title: 'Architecture overview'
+description: 'How the Book Store API Automation Testing framework is structured, from Gherkin feature files down to HTTP request execution and reporting.'
+---
+
+The framework follows a strict layered design. Each layer has a single responsibility and communicates only with the layer directly below it. This separation keeps test scenarios readable, business logic isolated in step definitions, and infrastructure concerns (base URL, headers, serialization) hidden from test authors.
+
+## Data flow
+
+```text
+Feature File (Gherkin)
+        ↓
+  TestRunner.java          ← Runs tests via @RunWith(Cucumber.class)
+        ↓
+StepDefinition.java        ← Maps Gherkin steps to Java methods
+        ↓
+   Utils.java              ← Shared RequestSpecification (base URL, headers, logging)
+        ↓
+TestDataBuild.java         ← Builds request body using POJO classes
+        ↓
+APIResources.java          ← Enum provides endpoint paths
+        ↓
+  Rest Assured             ← Sends HTTP request & validates response
+        ↓
+ logging.txt               ← Request & response logged automatically
+        ↓
+cucumber-report.json       ← JSON report → HTML report via Maven plugin
+```
+
+A test run starts in the feature file, flows down through each layer to execute an HTTP call, and surfaces results in both a log file and a structured HTML report.
+
+## Layer summary
+
+<Columns cols={2}>
+  <Card title="Feature layer" icon="file-text">
+    Gherkin scenarios written in `placeValidations.feature` describe business behaviour in plain English. No Java knowledge is required to read or author scenarios.
+  </Card>
+  <Card title="Step definition layer" icon="link">
+    `StepDefinition.java` and `Hooks.java` translate each Gherkin step into a concrete Java method. This is the only layer that references both the feature file and the utility layer.
+  </Card>
+  <Card title="Utility layer" icon="settings">
+    `Utils.java`, `TestDataBuild.java`, and `APIResources.java` handle all infrastructure concerns — base URL, request headers, payload construction, and endpoint resolution.
+  </Card>
+  <Card title="Model layer" icon="database">
+    `AddPlace.java` and `Location.java` are plain Java objects (POJOs) that represent the Add Place request body. Jackson Databind serializes them to JSON automatically.
+  </Card>
+</Columns>
+
+## Layer responsibilities
+
+### Feature layer
+
+The feature layer contains the Gherkin `.feature` files. Each scenario reads like a specification:
+
+```gherkin
+Scenario: Verify if Place is being Successfully added using AddPlaceAPI
+  Given I Add Place Payload With "Taj Hotel" "Happy Street" "melboune"
+  When I call the AddPlace api
+  Then the api call got success with status code 200
+  And "Place_Id" created maps to "Taj Hotel" using "GetPlace" API
+```
+
+Scenarios are the source of truth for what the system under test is expected to do. They are version-controlled alongside the code they test.
+
+### Step definition layer
+
+`StepDefinition.java` contains the glue code that binds each Gherkin step regex to a Java method. It calls into the utility layer to build and dispatch requests, then uses Rest Assured's fluent assertion API to validate responses.
+
+`Hooks.java` implements a `@Before` hook that runs before the Delete scenario, ensuring the required place exists before attempting to delete it.
+
+<Note>
+Cucumber resolves step definitions by scanning the package path configured in `TestRunner.java`. All step definition classes must be on that scan path.
+</Note>
+
+### Utility layer
+
+Three classes share responsibility for infrastructure:
+
+- **`Utils.java`** — builds a `RequestSpecification` configured with the base URL from `global.properties`, JSON content-type headers, and a logging filter that writes to `logging.txt`.
+- **`TestDataBuild.java`** — constructs request payload objects by instantiating POJOs and populating fields. Returns a fully formed `AddPlace` object ready for serialization.
+- **`APIResources.java`** — an enum that maps logical endpoint names (`AddPlace`, `GetPlace`, `DeletePlace`) to their URL path strings, preventing hardcoded paths from spreading across step definitions.
+
+### Model layer
+
+`AddPlace.java` models the top-level request body and `Location.java` models the nested coordinate object. Jackson Databind converts these objects to JSON when Rest Assured sends the request.
+
+```java
+// TestDataBuild.java delegates to these POJOs
+AddPlace addPlace = new AddPlace();
+addPlace.setName(name);
+addPlace.setAddress(address);
+addPlace.setLanguage("French-IN");
+
+Location location = new Location();
+location.setLat(-38.383494);
+location.setLng(33.427362);
+addPlace.setLocation(location);
+```
+
+## How layers interact
+
+Each layer depends only on the layer immediately below it:
+
+1. The **feature file** has no Java dependency — it is pure Gherkin text.
+2. **`StepDefinition.java`** imports `Utils`, `TestDataBuild`, and `APIResources`, but never touches POJO classes directly.
+3. **`Utils.java`** reads `global.properties` for the base URL and owns the `RequestSpecification` instance that step definitions share via a static reference.
+4. **`TestDataBuild.java`** instantiates POJO classes and returns a ready-to-serialize object.
+5. **`APIResources.java`** is a pure enum with no dependencies.
+6. **POJO classes** have no dependencies beyond standard Java.
+
+<Tip>
+When adding a new endpoint, you only need to add an entry to `APIResources.java`, create a POJO if the request body differs, add a builder method in `TestDataBuild.java`, and write a new scenario. The utility and model layers are independently extensible.
+</Tip>

@@ -1,0 +1,195 @@
+---
+title: Known issues
+description: Documented limitations and improvement suggestions for the API test framework, with current code and recommended fixes.
+---
+
+The following issues are known in the current state of the framework. Each entry describes the problem, its impact, and a concrete fix.
+
+<AccordionGroup>
+
+  <Accordion title="1. Hardcoded file path in Utils.java">
+
+    <Warning>
+      This issue prevents the project from running on any machine other than the one where it was originally developed.
+    </Warning>
+
+    **Description**
+
+    `Utils.java` reads `global.properties` using an absolute file path that is specific to the original developer's machine.
+
+    **Impact**
+
+    Any team member who clones the repository will get a `FileNotFoundException` at runtime because the path `C:\Users\a\eclipse-workspace\...` does not exist on their system. CI/CD pipelines will also fail.
+
+    **Current code**
+
+    ```java Utils.java (problematic)
+    FileInputStream file = new FileInputStream(
+        "C:\\Users\\a\\eclipse-workspace\\APIFramework\\src\\test\\java\\resources\\global.properties"
+    );
+    ```
+
+    **Fix**
+
+    Use `System.getProperty("user.dir")` to resolve the project root at runtime:
+
+    ```java Utils.java (fixed)
+    FileInputStream file = new FileInputStream(
+        System.getProperty("user.dir") +
+        "/src/test/java/resources/global.properties"
+    );
+    ```
+
+  </Accordion>
+
+  <Accordion title="2. Static place_id causes issues in parallel execution">
+
+    <Warning>
+      This issue causes non-deterministic test failures when tests run in parallel.
+    </Warning>
+
+    **Description**
+
+    The `place_id` returned by the Add Place step is stored in a `static` field and shared across all test threads. In parallel execution, one thread can overwrite the value before another thread has finished using it.
+
+    **Impact**
+
+    Tests that run concurrently will interfere with each other: a Delete Place step in one thread may attempt to delete the place created by a different thread, causing false failures or leaving orphaned data.
+
+    **Current code**
+
+    ```java StepDefinitions.java (problematic)
+    public static String placeId;
+
+    // In the Add Place step:
+    placeId = response.path("place_id");
+    ```
+
+    **Fix**
+
+    Use `ThreadLocal<String>` to isolate the value per thread:
+
+    ```java StepDefinitions.java (fixed)
+    public static ThreadLocal<String> placeId = new ThreadLocal<>();
+
+    // In the Add Place step:
+    placeId.set(response.path("place_id"));
+
+    // In the Delete/Get Place step:
+    String id = placeId.get();
+    ```
+
+  </Accordion>
+
+  <Accordion title="3. No negative test cases">
+
+    **Description**
+
+    All existing scenarios cover only the happy path: a valid request with correct data that returns `status: OK`. There are no tests for invalid inputs, missing fields, or error responses.
+
+    **Impact**
+
+    Error handling code paths are untested. Defects such as missing validation, unhelpful error messages, or incorrect HTTP status codes on failure will not be caught.
+
+    **Missing scenarios to add**
+
+    ```gherkin AddPlace.feature
+    # Invalid API key
+    Scenario: Add Place with an invalid API key
+      Given I set the POST endpoint for Add Place
+      When I add a place with key "wrongkey"
+      Then the response status should not be "OK"
+
+    # Missing required field
+    Scenario: Add Place with missing name field
+      Given I set the POST endpoint for Add Place
+      When I add a place without a name
+      Then the response status should indicate an error
+
+    # Get Place with a non-existent place_id
+    Scenario: Get Place with an invalid place_id
+      Given I set the GET endpoint for Get Place
+      When I retrieve place with id "invalid_id_xyz"
+      Then the response status should not be "OK"
+    ```
+
+    Add corresponding step definitions and assertions to validate HTTP status codes and error response bodies.
+
+  </Accordion>
+
+  <Accordion title="4. Scenario Outline has only one example row">
+
+    **Description**
+
+    The `Scenario Outline` in the feature file has a single row in its `Examples` table. This provides no data-driven coverage benefit over a plain `Scenario`.
+
+    **Impact**
+
+    Edge cases such as boundary coordinates, special characters in names, or international phone numbers are not exercised.
+
+    **Current examples table**
+
+    ```gherkin AddPlace.feature (current)
+    Examples:
+      | name   | address             | language |
+      | AHouse | World Cross Center  | English  |
+    ```
+
+    **Fix: add more rows**
+
+    ```gherkin AddPlace.feature (improved)
+    Examples:
+      | name              | address              | language   |
+      | AHouse            | World Cross Center   | English    |
+      | BOffice           | 123 Main Street      | French     |
+      | C Café & Bar      | 456 Side Avenue      | Spanish    |
+      | DPlace            | Boundary Rd, North   | German     |
+    ```
+
+    Each row becomes an independent test execution. Ensure that step definitions use the column placeholders (e.g., `<name>`, `<address>`) rather than hardcoded strings.
+
+  </Accordion>
+
+  <Accordion title="5. No environment switching support">
+
+    **Description**
+
+    The base URL is fixed to the production endpoint (`https://rahulshettyacademy.com`) in `global.properties`. There is no mechanism to target a dev or staging environment without editing the file.
+
+    **Impact**
+
+    Running the test suite against a staging environment requires a manual file edit, which is error-prone and makes pipeline automation more difficult.
+
+    **Current configuration**
+
+    ```properties global.properties (current)
+    baseURL=https://rahulshettyacademy.com
+    ```
+
+    **Suggested fix**
+
+    Add environment-specific properties files and select the active one via a Maven system property:
+
+    ```properties global-staging.properties
+    baseURL=https://staging.rahulshettyacademy.com
+    ```
+
+    ```java Utils.java (environment-aware)
+    String env = System.getProperty("env", "prod");
+    String configFile = String.format(
+        "%s/src/test/java/resources/global-%s.properties",
+        System.getProperty("user.dir"),
+        env
+    );
+    FileInputStream file = new FileInputStream(configFile);
+    ```
+
+    Then run tests against staging with:
+
+    ```bash
+    mvn test -Denv=staging
+    ```
+
+  </Accordion>
+
+</AccordionGroup>

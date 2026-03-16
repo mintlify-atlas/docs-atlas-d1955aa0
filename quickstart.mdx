@@ -1,80 +1,144 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart'
+description: 'Set up and run the Book Store API automation test suite from scratch.'
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+Before you begin, make sure you have the following installed and available:
 
-### Step 1: Set up your local environment
+- **Java 8 or higher** — the test suite requires a JDK, not just a JRE
+- **Apache Maven 3.6+** — used to manage dependencies and run tests
+- **Eclipse IDE** (with the M2E Maven plugin) or **IntelliJ IDEA**
+- **Internet access** to `rahulshettyacademy.com` — all API calls target this host during test execution
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+## Setup
 
-### Step 2: Deploy your changes
+<Steps>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Step title="Clone the repository">
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+Clone the project to your local machine:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash
+git clone https://github.com/your-org/book-store-api-automation.git
+cd book-store-api-automation
+```
 
-### Step 3: Go live
+</Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Step title="Import into Eclipse">
 
-## Next steps
+1. Open Eclipse and go to **File → Import**.
+2. Select **Maven → Existing Maven Projects** and click **Next**.
+3. Click **Browse** and select the cloned project directory.
+4. Confirm that `pom.xml` appears in the projects list, then click **Finish**.
 
-Now that you have your docs running, explore these key features:
+Eclipse resolves Maven dependencies automatically. Wait for the import and build to complete before proceeding.
 
-<CardGroup cols={2}>
+<Tip>
+If you use IntelliJ IDEA, open the project directory directly. IntelliJ detects `pom.xml` and imports it as a Maven project automatically.
+</Tip>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+</Step>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+<Step title="Fix the hardcoded file path in Utils.java">
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+The `getGlobalValue` method in `src/test/java/resources/Utils.java` contains an absolute path pointing to the original developer's machine. You must update it to match your system.
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+<Warning>
+`Utils.java` contains a hardcoded Windows absolute path:
 
-</CardGroup>
+```java
+FileInputStream file = new FileInputStream(
+    "C:\\Users\\a\\eclipse-workspace\\APIFramework\\src\\test\\java\\resources\\global.properties"
+);
+```
+
+Running the tests without fixing this line throws a `FileNotFoundException` at runtime.
+</Warning>
+
+Replace that line with a path relative to the project root. Because `global.properties` is located at `src/test/java/resources/global.properties`, update the method to:
+
+```java
+public static String getGlobalValue(String key) throws IOException {
+    Properties prop = new Properties();
+    FileInputStream file = new FileInputStream(
+        "src/test/java/resources/global.properties"
+    );
+    prop.load(file);
+    return prop.getProperty(key);
+}
+```
+
+Maven resolves relative paths from the directory containing `pom.xml`, which is the project root. Always run `mvn` commands from that directory.
+
+</Step>
+
+<Step title="Install dependencies">
+
+Download all Maven dependencies declared in `pom.xml` without running tests:
+
+```bash
+mvn clean install -DskipTests
+```
+
+This pulls in Rest Assured, Cucumber, JUnit, Jackson Databind, Groovy, and the `maven-cucumber-reporting` plugin. A successful run ends with `BUILD SUCCESS`.
+
+</Step>
+
+<Step title="Run all tests">
+
+Execute the full test suite:
+
+```bash
+mvn test
+```
+
+Maven discovers `TestRunner.java`, which points Cucumber at the feature files under `src/test/java/features` and step definitions under the `stepDefinitions` package. Both scenarios in `placeValidations.feature` run — one tagged `@AddPlace @Regression` and one tagged `@DeletePlace @Regression`.
+
+A raw JSON report is written to `target/jsonReports/cucumber-report.json` after the run.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+The API key `qaclick123` is hardcoded as a query parameter in `Utils.java`:
+
+```java
+.addQueryParam("key", "qaclick123")
+```
+
+All requests to the Place Management API are sent with this key automatically. No additional configuration is required unless the key changes.
 </Note>
+
+</Step>
+
+<Step title="Generate the HTML report">
+
+Run the `maven-cucumber-reporting` plugin to produce a human-readable HTML report from the JSON output:
+
+<CodeGroup>
+
+```bash Run tests and generate report
+mvn verify
+```
+
+```bash Generate report without re-running tests
+mvn verify -DskipTests
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="View the report">
+
+Open the generated report in your browser:
+
+```
+target/cucumber-html-reports/overview-features.html
+```
+
+The overview page shows a feature-by-feature summary with pass/fail counts, scenario tags (`@AddPlace`, `@DeletePlace`, `@Regression`), and step-level details for each scenario.
+
+</Step>
+
+</Steps>

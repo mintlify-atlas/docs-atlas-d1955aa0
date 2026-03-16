@@ -1,0 +1,62 @@
+---
+title: 'Hooks'
+description: 'Hooks.java defines a @Before hook for the @DeletePlace tag that guarantees a valid place_id exists before the Delete scenario runs.'
+---
+
+`Hooks` contains Cucumber lifecycle hooks. The single hook in this class runs before any scenario tagged `@DeletePlace` and ensures the test has a valid `place_id` to work with — even if the Delete scenario is run in isolation.
+
+## The `@Before("@DeletePlace")` hook
+
+```java
+@Before("@DeletePlace")
+public void beforeScenario() throws IOException {
+    StepDefinition sd = new StepDefinition();
+    
+    if (StepDefinition.place_id == null) {
+        sd.add_place_payload_with("Mahmoud", "Arabic", "Africa");
+        sd.user_calls_with_http_request("addPlaceAPI", "POST");
+        sd.verify_place_id_created_maps_to_using("Mahmoud", "getPlaceAPI");
+    }
+}
+```
+
+### What it does
+
+Before each `@DeletePlace` scenario, the hook checks whether `StepDefinition.place_id` is `null`. If it is, the hook runs three step definition methods directly to:
+
+1. Build an Add Place request for `"Mahmoud"`, language `"Arabic"`, address `"Africa"`.
+2. POST the request to `addPlaceAPI`.
+3. Verify the created place by calling `getPlaceAPI` and capture the `place_id` into `StepDefinition.place_id`.
+
+Once those three calls complete, `place_id` is populated and the Delete scenario can proceed.
+
+### The null check
+
+The `if (StepDefinition.place_id == null)` guard prevents the hook from creating a duplicate place when the Delete scenario follows an Add Place scenario in the same test run. If the Add scenario already ran and stored `place_id`, the hook skips the setup entirely.
+
+<Note>
+This design makes the Delete scenario independent of execution order. You can run the Delete scenario alone (e.g., with tag filtering) without first running the Add scenario — the hook will create the required place automatically.
+</Note>
+
+## Full source code
+
+```java Hooks.java
+package stepDefinitions;
+
+import io.cucumber.java.Before;
+import java.io.IOException;
+
+public class Hooks {
+    
+    @Before("@DeletePlace")
+    public void beforeScenario() throws IOException {
+        StepDefinition sd = new StepDefinition();
+        
+        if (StepDefinition.place_id == null) {
+            sd.add_place_payload_with("Mahmoud", "Arabic", "Africa");
+            sd.user_calls_with_http_request("addPlaceAPI", "POST");
+            sd.verify_place_id_created_maps_to_using("Mahmoud", "getPlaceAPI");
+        }
+    }
+}
+```

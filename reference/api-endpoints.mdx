@@ -1,0 +1,277 @@
+---
+title: API endpoints
+description: Complete reference for the Places API — Add Place, Get Place, and Delete Place.
+---
+
+All requests require the `key` query parameter. The base URL is `https://rahulshettyacademy.com`.
+
+<Note>
+  The API key `qaclick123` must be appended to every request as `?key=qaclick123`.
+</Note>
+
+---
+
+## Add Place
+
+`POST /maps/api/place/add/json`
+
+Creates a new place and returns a unique `place_id`.
+
+### Request
+
+**Query parameters**
+
+<ParamField query="key" type="string" required>
+  API key for authentication. Use `qaclick123`.
+</ParamField>
+
+**Request body**
+
+<ParamField body="name" type="string" required>
+  Name of the place.
+</ParamField>
+
+<ParamField body="accuracy" type="number" required>
+  Accuracy of the location in meters.
+</ParamField>
+
+<ParamField body="phone_number" type="string" required>
+  Contact phone number for the place, including country code.
+</ParamField>
+
+<ParamField body="address" type="string" required>
+  Street address of the place.
+</ParamField>
+
+<ParamField body="website" type="string" required>
+  Website URL associated with the place.
+</ParamField>
+
+<ParamField body="language" type="string" required>
+  Language used for the place details (e.g., `English`).
+</ParamField>
+
+<ParamField body="location" type="object" required>
+  Geographic coordinates of the place.
+  <Expandable title="properties">
+    <ParamField body="lat" type="number" required>
+      Latitude of the place.
+    </ParamField>
+    <ParamField body="lng" type="number" required>
+      Longitude of the place.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="types" type="string[]" required>
+  Array of category labels for the place (e.g., `["home", "house"]`).
+</ParamField>
+
+### Response
+
+<ResponseField name="status" type="string" required>
+  Request status. `OK` on success.
+</ResponseField>
+
+<ResponseField name="place_id" type="string" required>
+  Unique identifier for the newly created place. Store this value to use with Get Place and Delete Place.
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Visibility scope of the place. Typically `APP`.
+</ResponseField>
+
+<ResponseField name="reference" type="string">
+  Internal reference token for the place.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  Internal identifier for the place.
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://rahulshettyacademy.com/maps/api/place/add/json?key=qaclick123' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "accuracy": 50,
+    "name": "AHouse",
+    "phone_number": "+20 1234567890",
+    "address": "World Cross Center",
+    "website": "https://rahulshettyacademy.com",
+    "language": "English",
+    "location": { "lat": -40.123456, "lng": 40.987654 },
+    "types": ["home", "house"]
+  }'
+```
+
+```java Java (RestAssured)
+given()
+  .baseUri("https://rahulshettyacademy.com")
+  .queryParam("key", "qaclick123")
+  .contentType(ContentType.JSON)
+  .body("{\"accuracy\":50,\"name\":\"AHouse\",\"phone_number\":\"+20 1234567890\"," +
+        "\"address\":\"World Cross Center\",\"website\":\"https://rahulshettyacademy.com\"," +
+        "\"language\":\"English\",\"location\":{\"lat\":-40.123456,\"lng\":40.987654}," +
+        "\"types\":[\"home\",\"house\"]}")
+.when()
+  .post("/maps/api/place/add/json")
+.then()
+  .statusCode(200)
+  .body("status", equalTo("OK"));
+```
+
+</CodeGroup>
+
+**Sample response**
+
+```json
+{
+  "status": "OK",
+  "place_id": "c90f6fa898d64b3e9523d025ede47c00",
+  "scope": "APP",
+  "reference": "some_reference",
+  "id": "some_id"
+}
+```
+
+---
+
+## Get Place
+
+`GET /maps/api/place/get/json`
+
+Retrieves details for a place using its `place_id`.
+
+### Request
+
+**Query parameters**
+
+<ParamField query="key" type="string" required>
+  API key for authentication. Use `qaclick123`.
+</ParamField>
+
+<ParamField query="place_id" type="string" required>
+  The unique identifier of the place to retrieve. Obtained from the Add Place response.
+</ParamField>
+
+### Response
+
+<ResponseField name="name" type="string" required>
+  Name of the place.
+</ResponseField>
+
+<ResponseField name="location" type="object" required>
+  Geographic coordinates of the place.
+  <Expandable title="properties">
+    <ResponseField name="lat" type="number" required>
+      Latitude of the place.
+    </ResponseField>
+    <ResponseField name="lng" type="number" required>
+      Longitude of the place.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Request status. `OK` on success.
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  'https://rahulshettyacademy.com/maps/api/place/get/json?key=qaclick123&place_id=c90f6fa898d64b3e9523d025ede47c00'
+```
+
+```java Java (RestAssured)
+given()
+  .baseUri("https://rahulshettyacademy.com")
+  .queryParam("key", "qaclick123")
+  .queryParam("place_id", placeId)
+.when()
+  .get("/maps/api/place/get/json")
+.then()
+  .statusCode(200)
+  .body("status", equalTo("OK"));
+```
+
+</CodeGroup>
+
+**Sample response**
+
+```json
+{
+  "name": "AHouse",
+  "location": { "lat": -40.123456, "lng": 40.987654 },
+  "status": "OK"
+}
+```
+
+---
+
+## Delete Place
+
+`POST /maps/api/place/delete/json`
+
+Deletes a place by its `place_id`.
+
+### Request
+
+**Query parameters**
+
+<ParamField query="key" type="string" required>
+  API key for authentication. Use `qaclick123`.
+</ParamField>
+
+**Request body**
+
+<ParamField body="place_id" type="string" required>
+  The unique identifier of the place to delete. Obtained from the Add Place response.
+</ParamField>
+
+### Response
+
+<ResponseField name="status" type="string" required>
+  Request status. `OK` on success.
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url 'https://rahulshettyacademy.com/maps/api/place/delete/json?key=qaclick123' \
+  --header 'Content-Type: application/json' \
+  --data '{"place_id": "c90f6fa898d64b3e9523d025ede47c00"}'
+```
+
+```java Java (RestAssured)
+given()
+  .baseUri("https://rahulshettyacademy.com")
+  .queryParam("key", "qaclick123")
+  .contentType(ContentType.JSON)
+  .body("{\"place_id\":\"" + placeId + "\"}")
+.when()
+  .post("/maps/api/place/delete/json")
+.then()
+  .statusCode(200)
+  .body("status", equalTo("OK"));
+```
+
+</CodeGroup>
+
+**Sample response**
+
+```json
+{
+  "status": "OK"
+}
+```

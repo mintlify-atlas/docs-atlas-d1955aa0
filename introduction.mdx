@@ -1,0 +1,97 @@
+---
+title: "Introduction"
+description: "A BDD API test automation framework built with Rest Assured and Cucumber for validating Place Management REST API endpoints."
+---
+
+# Book Store API Automation Testing
+
+A complete API test automation framework built with **Rest Assured**, **Cucumber BDD**, and **JUnit**. This framework validates Place Management REST API endpoints — Add, Get, and Delete — using a structured BDD approach with reusable components and detailed logging.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get the framework up and running in minutes
+  </Card>
+  <Card title="Framework Architecture" icon="sitemap" href="/architecture/overview">
+    Understand the layered design and component relationships
+  </Card>
+  <Card title="Test Scenarios" icon="flask" href="/tests/feature-files">
+    Explore the BDD feature files and Gherkin scenarios
+  </Card>
+  <Card title="API Endpoints" icon="code" href="/reference/api-endpoints">
+    Reference for all Place Management API endpoints
+  </Card>
+</CardGroup>
+
+## What this framework does
+
+This framework automates the testing of a **Place Management REST API** that supports three core operations:
+
+| Operation | HTTP Method | Endpoint |
+|-----------|-------------|----------|
+| Add Place | POST | `/maps/api/place/add/json` |
+| Get Place | GET | `/maps/api/place/get/json` |
+| Delete Place | POST | `/maps/api/place/delete/json` |
+
+Tests are written in **plain English using Gherkin syntax** (BDD), making them readable by non-technical stakeholders. The framework validates end-to-end scenarios such as creating a place, verifying it exists via its returned `place_id`, and deleting it.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="BDD with Cucumber" icon="seedling">
+    Test scenarios written in Gherkin — human-readable and executable
+  </Card>
+  <Card title="Rest Assured" icon="bolt">
+    Fluent Java DSL for HTTP request/response validation
+  </Card>
+  <Card title="Data-driven testing" icon="table">
+    Cucumber Scenario Outline with Examples for parameterized test runs
+  </Card>
+  <Card title="Automatic logging" icon="file-lines">
+    All HTTP requests and responses logged to `logging.txt` automatically
+  </Card>
+  <Card title="Rich HTML reports" icon="chart-bar">
+    Maven Cucumber Reporting generates detailed dashboards after `mvn verify`
+  </Card>
+  <Card title="Independent scenarios" icon="link-slash">
+    Cucumber Hooks ensure Delete scenario runs standalone without Add
+  </Card>
+</CardGroup>
+
+## Framework architecture at a glance
+
+```
+Feature File (Gherkin)
+        ↓
+  TestRunner.java          ← Runs tests via @RunWith(Cucumber.class)
+        ↓
+StepDefinition.java        ← Maps Gherkin steps to Java methods
+        ↓
+   Utils.java              ← Shared RequestSpecification (base URL, headers, logging)
+        ↓
+TestDataBuild.java         ← Builds request body using POJO classes
+        ↓
+APIResources.java          ← Enum provides endpoint paths
+        ↓
+  Rest Assured             ← Sends HTTP request & validates response
+        ↓
+ logging.txt               ← Request & response logged automatically
+        ↓
+cucumber-report.json       ← JSON report → HTML report via Maven plugin
+```
+
+## Tech stack
+
+| Tool / Library | Version | Purpose |
+|----------------|---------|---------|
+| Java | 8+ | Programming language |
+| Maven | 3.x | Build tool & dependency management |
+| Rest Assured | 6.0.0 | HTTP request/response handling |
+| Cucumber (Java) | 7.33.0 | BDD framework — Gherkin feature files |
+| Cucumber (JUnit) | 7.33.0 | JUnit integration for Cucumber tests |
+| Jackson Databind | 3.0.3 | POJO → JSON serialization |
+| Groovy | 3.0.25 | GPath/JsonPath support for Rest Assured |
+| Maven Cucumber Reporting | 5.9.0 | Rich HTML test reports |
+
+## Author
+
+**Mahmoud Mohamed Samy** — ISTQB® CTFL & CT-MAT Certified Software Testing Engineer

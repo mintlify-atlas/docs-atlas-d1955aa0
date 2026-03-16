@@ -1,0 +1,96 @@
+---
+title: 'Reports'
+description: 'Where to find the JSON and HTML test reports, what they contain, and how the Maven Cucumber Reporting plugin generates them.'
+---
+
+The framework produces two report artifacts after a test run: a machine-readable JSON file and a human-readable HTML report.
+
+## JSON report
+
+**Location:** `target/jsonReports/cucumber-report.json`
+
+The JSON report is written by Cucumber immediately after `mvn test` completes. It is configured in `TestRunner.java` via the `plugin` option:
+
+```java
+@CucumberOptions(
+    features = "src/test/java/features",
+    plugin = "json:target/jsonReports/cucumber-report.json",
+    glue = {"stepDefinitions"}
+)
+```
+
+The JSON file records every feature, scenario, step, and their pass/fail status. It is the input consumed by the Maven Cucumber Reporting plugin to produce the HTML report.
+
+## HTML report
+
+**Location:** `target/cucumber-html-reports/overview-features.html`
+
+The HTML report is generated during the `verify` phase by the Maven Cucumber Reporting plugin. Run `mvn verify` (not just `mvn test`) to produce it.
+
+**To open the report:**
+
+1. After `mvn verify` completes, navigate to `target/cucumber-html-reports/` in your file system.
+2. Open `overview-features.html` in any browser.
+
+The HTML report shows:
+
+- **Pass/fail counts** — total scenarios, passed, failed, and skipped, displayed as summary cards.
+- **Charts** — pie and bar charts breaking down results by feature and tag.
+- **Feature-level results** — each feature file listed with its scenario count and pass rate.
+- **Scenario details** — expand any scenario to see each step, its status, and the duration.
+- **Step-by-step results** — individual step pass/fail status with embedded error messages for failures.
+
+## Maven Cucumber Reporting plugin
+
+The HTML report is produced by the `net.masterthought` plugin at version `5.9.0`. It runs automatically during the `verify` lifecycle phase. No manual invocation is needed.
+
+**Plugin configuration in `pom.xml`:**
+
+```xml
+<plugin>
+    <groupId>net.masterthought</groupId>
+    <artifactId>maven-cucumber-reporting</artifactId>
+    <version>5.9.0</version>
+    <executions>
+        <execution>
+            <id>execution</id>
+            <phase>verify</phase>
+            <goals>
+                <goal>generate</goal>
+            </goals>
+            <configuration>
+                <projectName>cucumber-jvm-example</projectName>
+                <skip>false</skip>
+                <outputDirectory>${project.build.directory}</outputDirectory>
+                <inputDirectory>${project.build.directory}/jsonReports</inputDirectory>
+                <jsonFiles>
+                    <param>**/*.json</param>
+                </jsonFiles>
+                <mergeFeaturesById>false</mergeFeaturesById>
+                <mergeFeaturesWithRetest>false</mergeFeaturesWithRetest>
+                <checkBuildResult>false</checkBuildResult>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+### Key configuration options
+
+| Option | Value | Effect |
+|---|---|---|
+| `outputDirectory` | `${project.build.directory}` | HTML files written to `target/` |
+| `inputDirectory` | `${project.build.directory}/jsonReports` | Reads JSON from `target/jsonReports/` |
+| `jsonFiles` | `**/*.json` | Picks up any `.json` file in the input directory |
+| `mergeFeaturesById` | `false` | Each feature file reported separately |
+| `checkBuildResult` | `false` | Plugin does not fail the build based on test results |
+
+### `checkBuildResult=false`
+
+With `checkBuildResult` set to `false`, the reporting plugin completes successfully even when scenarios have failed. Combined with `testFailureIgnore=true` in the Surefire configuration, the entire Maven build exits with code `0` regardless of test outcomes.
+
+This is intentional: the build always produces a complete report. You inspect the report to determine pass/fail status rather than relying on the build exit code.
+
+<Warning>
+  If you change `checkBuildResult` to `true`, any failing scenario will cause `mvn verify` to exit with a non-zero code. This is useful for CI gates but means a partially-failing run will not produce a browsable HTML report.
+</Warning>

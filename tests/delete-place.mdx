@@ -1,0 +1,75 @@
+---
+title: 'Delete Place scenario'
+description: 'Detailed walkthrough of the Delete Place scenario, including the @Before hook that ensures a place exists before deletion is attempted.'
+---
+
+The Delete Place scenario verifies that sending a valid `place_id` to the delete endpoint removes the place and returns `status: OK`. A `@Before` hook makes this scenario fully self-contained — it does not depend on the Add Place scenario having run first.
+
+**Tags:** `@DeletePlace` `@Regression`
+
+## The scenario
+
+```gherkin
+@DeletePlace @Regression
+Scenario: Verify if Delete Place functionality is working
+    Given DeletePlace Payload
+    When user calls "deletePlaceAPI" with "POST" http request
+    Then the API call got success with status code 200
+    And "status" in response body is "OK"
+```
+
+## Step-by-step breakdown
+
+<Steps>
+  <Step title="Hook: @Before(&quot;@DeletePlace&quot;) — ensure a place exists">
+    Before the scenario steps run, Cucumber executes the `@Before("@DeletePlace")` hook defined in `Hooks.java`. The hook checks whether a `place_id` is already available in shared state. If not, it calls the Add Place API (`POST /maps/api/place/add/json?key=qaclick123`) to create a new place and stores the returned `place_id`. This guarantees the delete step always has a valid target, regardless of execution order.
+  </Step>
+  <Step title="Given DeletePlace Payload">
+    Builds the delete request body as a POJO (`DeletePlace`) and sets the `place_id` field to the value stored by the hook. Serialises it to JSON for the outgoing request.
+  </Step>
+  <Step title="When user calls &quot;deletePlaceAPI&quot; with &quot;POST&quot; http request">
+    Resolves the endpoint key `deletePlaceAPI` to `POST /maps/api/place/delete/json?key=qaclick123`, attaches the serialised payload, and dispatches the request. The response is stored for subsequent assertions.
+  </Step>
+  <Step title="Then the API call got success with status code 200">
+    Asserts that the HTTP response status code is `200`.
+  </Step>
+  <Step title="And &quot;status&quot; in response body is &quot;OK&quot;">
+    Extracts the `status` field from the JSON response body and asserts its value equals `"OK"`, confirming the place was successfully removed.
+  </Step>
+</Steps>
+
+## Request body
+
+```json
+{
+  "place_id": "some_unique_id"
+}
+```
+
+Sent to: `POST /maps/api/place/delete/json?key=qaclick123`
+
+The `place_id` value is populated at runtime from the shared state set by the `@Before` hook.
+
+## Expected response
+
+```json
+{
+  "status": "OK"
+}
+```
+
+## How this scenario is independent
+
+The `@Before("@DeletePlace")` hook is the key to isolation. Because it provisions its own place before the scenario steps run, the Delete Place scenario can be executed:
+
+- On its own (e.g., `tags = "@DeletePlace"` in `TestRunner.java`)
+- As part of the full regression suite alongside Add Place
+- In any order relative to other scenarios
+
+<Info>
+Without the hook, running Delete Place in isolation would fail because there would be no `place_id` to delete. The hook removes this dependency entirely.
+</Info>
+
+<Tip>
+If you need to test deletion of a specific, pre-existing place (for example, one seeded in a test environment), you can override the `place_id` in the hook logic rather than always creating a fresh place.
+</Tip>

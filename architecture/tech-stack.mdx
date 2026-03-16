@@ -1,0 +1,143 @@
+---
+title: 'Tech stack'
+description: 'Every library and tool used in the Book Store API Automation Testing framework, with versions, rationale, and how each piece fits together.'
+---
+
+The framework is built from a small set of focused libraries. Each tool solves one problem, and the combination covers the full testing lifecycle: scenario authoring, HTTP execution, response assertion, payload serialization, and report generation.
+
+## Tools at a glance
+
+<Columns cols={2}>
+  <Card title="Java 8+" icon="coffee">
+    The implementation language. Lambda expressions and streams are available but not required — the codebase is deliberately straightforward.
+  </Card>
+  <Card title="Maven 3.x" icon="box">
+    Build tool and dependency manager. Runs tests with `mvn test` and drives report generation via the Maven Cucumber Reporting plugin.
+  </Card>
+  <Card title="Rest Assured 6.0.0" icon="send">
+    Java DSL for testing REST APIs. Handles request construction, HTTP dispatch, response parsing, and assertion in a single fluent call chain.
+  </Card>
+  <Card title="Cucumber 7.33.0" icon="leaf">
+    BDD framework. Parses `.feature` files and wires Gherkin steps to Java methods. The `cucumber-java` artifact provides the annotations; `cucumber-junit` provides JUnit 4 integration.
+  </Card>
+  <Card title="JUnit 4" icon="check-circle">
+    Test runner. `TestRunner.java` uses `@RunWith(Cucumber.class)` to delegate execution to Cucumber while keeping JUnit as the host runner recognised by Maven Surefire.
+  </Card>
+  <Card title="Jackson Databind 3.0.3" icon="repeat">
+    Serializes POJO request models to JSON. Rest Assured calls Jackson automatically when `.body(pojoInstance)` is combined with `.contentType(ContentType.JSON)`.
+  </Card>
+  <Card title="Groovy 3.0.25" icon="code">
+    Provides GPath expression support used internally by Rest Assured to evaluate JsonPath queries on response bodies (e.g., `response.path("place_id")`).
+  </Card>
+  <Card title="Maven Cucumber Reporting 5.9.0" icon="bar-chart">
+    Maven plugin that converts the raw `cucumber-report.json` output into a multi-page HTML report with charts, step-level results, and failure details.
+  </Card>
+</Columns>
+
+## Dependency details
+
+### Core testing dependencies
+
+These four dependencies form the execution backbone of the framework.
+
+```xml
+<!-- REST API client and assertion library -->
+<dependency>
+    <groupId>io.rest-assured</groupId>
+    <artifactId>rest-assured</artifactId>
+    <version>6.0.0</version>
+</dependency>
+
+<!-- BDD step annotation and Gherkin parsing -->
+<dependency>
+    <groupId>io.cucumber</groupId>
+    <artifactId>cucumber-java</artifactId>
+    <version>7.33.0</version>
+</dependency>
+
+<!-- JUnit 4 runner integration for Cucumber -->
+<dependency>
+    <groupId>io.cucumber</groupId>
+    <artifactId>cucumber-junit</artifactId>
+    <version>7.33.0</version>
+</dependency>
+
+<!-- POJO-to-JSON serialization -->
+<dependency>
+    <groupId>tools.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>3.0.3</version>
+</dependency>
+```
+
+### GPath / JsonPath support
+
+Rest Assured relies on Groovy's GPath for evaluating JsonPath expressions on response bodies. This dependency is declared explicitly to pin the version and avoid classpath conflicts.
+
+```xml
+<dependency>
+    <groupId>org.codehaus.groovy</groupId>
+    <artifactId>groovy</artifactId>
+    <version>3.0.25</version>
+</dependency>
+```
+
+### Reporting plugin
+
+The Maven Cucumber Reporting plugin runs in the `verify` phase, after tests complete. It reads the JSON file written by the Cucumber `json` plugin and produces the HTML report under `target/cucumber-html-reports/`.
+
+```xml
+<plugin>
+    <groupId>net.masterthought</groupId>
+    <artifactId>maven-cucumber-reporting</artifactId>
+    <version>5.9.0</version>
+    <executions>
+        <execution>
+            <id>execution</id>
+            <phase>verify</phase>
+            <goals>
+                <goal>generate</goal>
+            </goals>
+            <configuration>
+                <projectName>Book-Store-API-Tests</projectName>
+                <outputDirectory>${project.build.directory}/cucumber-html-reports</outputDirectory>
+                <jsonFiles>
+                    <param>${project.build.directory}/jsonReports/cucumber-report.json</param>
+                </jsonFiles>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+<Note>
+The JSON report path configured in the plugin (`target/jsonReports/cucumber-report.json`) must match the path declared in the `plugin` option of `@CucumberOptions` in `TestRunner.java`. A mismatch will produce an empty or missing HTML report.
+</Note>
+
+## How the tools fit together
+
+The following sequence shows how each tool is active during a single test scenario:
+
+1. **Maven Surefire** detects `TestRunner.java` and launches the JVM.
+2. **JUnit** initialises the test class and hands control to `@RunWith(Cucumber.class)`.
+3. **Cucumber** parses `placeValidations.feature`, matches each step to a method in `StepDefinition.java`, and calls those methods in order.
+4. Inside a step method, **Jackson Databind** serializes an `AddPlace` POJO to a JSON string.
+5. **Rest Assured** attaches the JSON body to an HTTP request, sends it to the base URL resolved from `global.properties`, and returns a `Response` object.
+6. **Rest Assured** evaluates a **Groovy GPath** expression against the JSON response body to extract values like `place_id`.
+7. Rest Assured's assertion DSL validates status codes and body values, failing the step if an assertion does not hold.
+8. After all scenarios complete, **Cucumber** writes `cucumber-report.json`.
+9. **Maven Cucumber Reporting** converts the JSON to HTML during the `verify` phase.
+
+## Running the suite
+
+```bash
+# Run all tests and generate the HTML report
+mvn verify
+
+# Run tests only (skip the verify phase)
+mvn test
+```
+
+<Tip>
+To run a single tagged scenario during development, add `-Dcucumber.filter.tags="@tagname"` to the Maven command. This passes the tag expression through to Cucumber without modifying `TestRunner.java`.
+</Tip>

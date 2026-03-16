@@ -1,0 +1,123 @@
+---
+title: 'POJO classes'
+description: 'AddPlace and Location plain Java objects used for Jackson serialization of the Add Place request body.'
+---
+
+The `pojo` package contains two plain old Java objects (POJOs) that model the request body for the Add Place API. Jackson serializes these objects to JSON automatically, mapping each Java field name to the corresponding JSON key.
+
+## AddPlace
+
+`AddPlace` represents the full payload sent to `/maps/api/place/add/json`. It holds all top-level fields, including a nested `Location` object and a list of place type strings.
+
+### Fields
+
+| Field | Java type | JSON key | Description |
+|---|---|---|---|
+| `accuracy` | `int` | `accuracy` | Accuracy of the location data in meters |
+| `name` | `String` | `name` | Name of the place |
+| `phone_number` | `String` | `phone_number` | Contact phone number |
+| `address` | `String` | `address` | Street address of the place |
+| `website` | `String` | `website` | URL of the place's website |
+| `language` | `String` | `language` | Language used for the place entry |
+| `location` | `Location` | `location` | Nested object with lat/lng coordinates |
+| `types` | `List<String>` | `types` | Array of category strings (e.g. `"home"`, `"house"`) |
+
+### Source code
+
+```java AddPlace.java
+package pojo;
+
+import java.util.List;
+
+public class AddPlace {
+    private int accuracy;
+    private String name;
+    private String phone_number;
+    private String address;
+    private String website;
+    private String language;
+    private Location location;
+    private List<String> types;
+
+    public int getAccuracy() { return accuracy; }
+    public void setAccuracy(int accuracy) { this.accuracy = accuracy; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getPhone_number() { return phone_number; }
+    public void setPhone_number(String phone_number) { this.phone_number = phone_number; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public String getWebsite() { return website; }
+    public void setWebsite(String website) { this.website = website; }
+
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
+
+    public Location getLocation() { return location; }
+    public void setLocation(Location location) { this.location = location; }
+
+    public List<String> getTypes() { return types; }
+    public void setTypes(List<String> types) { this.types = types; }
+}
+```
+
+## Location
+
+`Location` is a nested POJO embedded inside `AddPlace`. Jackson serializes it as a nested JSON object under the `location` key.
+
+### Fields
+
+| Field | Java type | JSON key | Description |
+|---|---|---|---|
+| `lat` | `double` | `lat` | Latitude coordinate |
+| `lng` | `double` | `lng` | Longitude coordinate |
+
+### Source code
+
+```java Location.java
+package pojo;
+
+public class Location {
+    private double lat;
+    private double lng;
+
+    public double getLat() { return lat; }
+    public void setLat(double lat) { this.lat = lat; }
+
+    public double getLng() { return lng; }
+    public void setLng(double lng) { this.lng = lng; }
+}
+```
+
+## Resulting JSON structure
+
+When `TestDataBuild.addPlacePayload()` populates an `AddPlace` instance and Rest Assured serializes it, the request body sent to the API looks like this:
+
+```json
+{
+  "accuracy": 50,
+  "name": "Mahmoud",
+  "phone_number": "+20 1234567890",
+  "address": "Africa",
+  "website": "https://rahulshettyacademy.com",
+  "language": "Arabic",
+  "location": {
+    "lat": -40.123456,
+    "lng": 40.987654
+  },
+  "types": [
+    "home",
+    "house"
+  ]
+}
+```
+
+## How Jackson maps field names
+
+Jackson derives the JSON key from the getter method name by convention. For a getter named `getPhoneNumber()`, Jackson produces `phoneNumber`. Because this project uses `getPhone_number()` (with an underscore), Jackson preserves the underscore and outputs `phone_number` as the JSON key — matching what the API expects.
+
+No `@JsonProperty` annotations are needed as long as getter names follow the `get<FieldName>` pattern and the field names themselves match the expected JSON keys.

@@ -1,0 +1,124 @@
+---
+title: 'Tags and test filtering'
+description: 'How to use Cucumber tags to run a subset of scenarios — by feature, by tag combination, or by exclusion — both from TestRunner.java and from the Maven command line.'
+---
+
+Cucumber tags let you label scenarios and then run only the ones you care about. This project uses tags to separate individual feature tests from the full regression suite and to control which scenarios execute in a given CI/CD pipeline stage.
+
+## Available tags
+
+| Tag | Applied to | Purpose |
+|---|---|---|
+| `@AddPlace` | Add Place `Scenario Outline` | Selects only the Add Place flow |
+| `@DeletePlace` | Delete Place `Scenario` | Selects only the Delete Place flow |
+| `@Regression` | Both scenarios | Selects all regression tests |
+
+## Configuring tags in TestRunner.java
+
+The `tags` option inside `@CucumberOptions` controls which tagged scenarios Cucumber picks up. Change the string value and rerun the suite to target a different subset.
+
+```java TestRunner.java
+@RunWith(Cucumber.class)
+@CucumberOptions(
+    features = "src/test/java/features",
+    plugin = "json:target/jsonReports/cucumber-report.json",
+    glue = {"stepDefinitions"},
+    tags = "@AddPlace"   // change this value to filter scenarios
+)
+public class TestRunner {
+}
+```
+
+## Filtering examples
+
+<Tabs>
+  <Tab title="@AddPlace">
+    Runs only the Add Place `Scenario Outline`. Use this when iterating on the add-place step definitions or the Add Place POJO.
+
+    ```java TestRunner.java
+    tags = "@AddPlace"
+    ```
+
+    Scenarios executed: **Add Place**
+  </Tab>
+  <Tab title="@DeletePlace">
+    Runs only the Delete Place `Scenario`. The `@Before("@DeletePlace")` hook still executes, so the scenario remains self-contained.
+
+    ```java TestRunner.java
+    tags = "@DeletePlace"
+    ```
+
+    Scenarios executed: **Delete Place**
+  </Tab>
+  <Tab title="@Regression">
+    Runs every scenario tagged `@Regression`. Both Add Place and Delete Place currently carry this tag, so the full suite runs.
+
+    ```java TestRunner.java
+    tags = "@Regression"
+    ```
+
+    Scenarios executed: **Add Place, Delete Place**
+  </Tab>
+  <Tab title="Tag intersection">
+    Use `and` to require both tags. This narrows the selection to scenarios that carry every tag listed.
+
+    ```java TestRunner.java
+    tags = "@AddPlace and @Regression"
+    ```
+
+    Scenarios executed: **Add Place** (the only scenario tagged with both)
+  </Tab>
+  <Tab title="Tag exclusion">
+    Use `not` to exclude scenarios that carry a specific tag. Useful when a scenario is temporarily broken and should be skipped without removing the tag.
+
+    ```java TestRunner.java
+    tags = "not @DeletePlace"
+    ```
+
+    Scenarios executed: **Add Place** (Delete Place is excluded)
+  </Tab>
+</Tabs>
+
+## Maven command-line override
+
+You can override the tags value at runtime without editing `TestRunner.java` by passing the `cucumber.filter.tags` system property:
+
+<CodeGroup>
+
+```bash Run @AddPlace only
+mvn test -Dcucumber.filter.tags="@AddPlace"
+```
+
+```bash Run @Regression suite
+mvn test -Dcucumber.filter.tags="@Regression"
+```
+
+```bash Exclude @DeletePlace
+mvn test -Dcucumber.filter.tags="not @DeletePlace"
+```
+
+```bash Tag intersection
+mvn test -Dcucumber.filter.tags="@AddPlace and @Regression"
+```
+
+</CodeGroup>
+
+<Note>
+The `-D` property overrides the `tags` value in `@CucumberOptions` entirely. The annotation value is only used when no command-line property is supplied.
+</Note>
+
+## Using tags in CI/CD pipelines
+
+Tags map naturally to pipeline stages. A common pattern:
+
+| Pipeline stage | Tag | What runs |
+|---|---|---|
+| Pull request check | `@AddPlace or @DeletePlace` | All feature tests |
+| Nightly regression | `@Regression` | Full regression suite |
+| Hotfix verification | Specific tag (e.g., `@DeletePlace`) | Only the affected scenario |
+
+This lets you keep fast feedback on pull requests while still running the full suite on a schedule, without maintaining separate test files for each pipeline.
+
+<Tip>
+When adding a new scenario, decide upfront which tags it should carry. Assigning `@Regression` immediately ensures it is included in nightly runs from day one.
+</Tip>

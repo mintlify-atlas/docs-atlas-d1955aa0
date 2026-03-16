@@ -1,0 +1,157 @@
+---
+title: Configuration
+description: Reference for all configurable properties in the API framework — global.properties, Utils.java, TestRunner.java, and Maven build settings.
+---
+
+## global.properties
+
+Located at `src/test/java/resources/global.properties`. This file stores environment-level settings that are loaded at runtime by `Utils.java`.
+
+| Property  | Value                              | Description                                             |
+| --------- | ---------------------------------- | ------------------------------------------------------- |
+| `baseURL` | `https://rahulshettyacademy.com`   | Base URL prepended to all API request paths.            |
+
+```properties global.properties
+baseURL=https://rahulshettyacademy.com
+```
+
+---
+
+## Utils.java
+
+`Utils.java` loads `global.properties` and exposes shared request configuration used across all test steps.
+
+<Tabs>
+  <Tab title="Eclipse">
+    When running tests directly from Eclipse, the working directory defaults to the project root. The path `System.getProperty("user.dir")` resolves correctly as long as the project is opened as a Maven project.
+
+    ```java Utils.java (Eclipse-compatible)
+    FileInputStream file = new FileInputStream(
+        System.getProperty("user.dir") +
+        "/src/test/java/resources/global.properties"
+    );
+    ```
+  </Tab>
+  <Tab title="Maven">
+    When running tests via `mvn test`, the working directory is always the project root. The relative path approach works without any additional configuration.
+
+    ```java Utils.java (Maven-compatible)
+    FileInputStream file = new FileInputStream(
+        System.getProperty("user.dir") +
+        "/src/test/java/resources/global.properties"
+    );
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  The original `Utils.java` contains a hardcoded absolute path:
+
+  ```java
+  // Do not use — machine-specific path
+  FileInputStream file = new FileInputStream(
+      "C:\\Users\\a\\eclipse-workspace\\APIFramework\\src\\test\\java\\resources\\global.properties"
+  );
+  ```
+
+  This path only works on the machine where it was written. Replace it with the `System.getProperty("user.dir")` version shown above so the project runs on any machine.
+</Warning>
+
+### Utils.java configuration options
+
+| Setting        | Location       | Current value | Description                                              |
+| -------------- | -------------- | ------------- | -------------------------------------------------------- |
+| `baseURL`      | `global.properties` | `https://rahulshettyacademy.com` | Loaded at runtime via `Properties`. |
+| API key        | Hardcoded in `Utils.java` | `qaclick123` | Appended as `?key=qaclick123` to all requests.      |
+| Properties file path | `Utils.java` constructor | `System.getProperty("user.dir") + "/src/test/java/resources/global.properties"` | Must use relative path. |
+
+<Note>
+  The API key `qaclick123` is currently hardcoded directly in `Utils.java`. Moving it to `global.properties` would allow per-environment key management without code changes.
+</Note>
+
+---
+
+## TestRunner.java (@CucumberOptions)
+
+`TestRunner.java` is the JUnit entry point for Cucumber. All Cucumber behaviour is controlled via the `@CucumberOptions` annotation.
+
+| Option          | Current value                                      | Description                                                                                  |
+| --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `features`      | `src/test/java/features`                           | Path to the directory containing `.feature` files.                                           |
+| `glue`          | `stepDefinitions`                                  | Package name where Cucumber looks for step definition classes.                               |
+| `plugin`        | `"pretty"`, `"html:target/HtmlReports/report.html"` | Output formatters. `pretty` prints readable console output; `html` generates an HTML report. |
+| `monochrome`    | `true`                                             | Strips ANSI colour codes from console output for cleaner logs in CI environments.            |
+
+```java TestRunner.java
+@RunWith(Cucumber.class)
+@CucumberOptions(
+    features = "src/test/java/features",
+    glue = "stepDefinitions",
+    plugin = { "pretty", "html:target/HtmlReports/report.html" },
+    monochrome = true
+)
+public class TestRunner {
+}
+```
+
+---
+
+## Maven build configuration
+
+<Tabs>
+  <Tab title="Surefire plugin">
+    The Maven Surefire Plugin runs JUnit tests during the `test` phase.
+
+    | Configuration option    | Value  | Description                                                                                      |
+    | ----------------------- | ------ | ------------------------------------------------------------------------------------------------ |
+    | `testFailureIgnore`     | `true` | Prevents the build from failing when test assertions fail. Allows reports to be generated even when tests have failures. |
+
+    ```xml pom.xml
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-surefire-plugin</artifactId>
+      <version>2.22.2</version>
+      <configuration>
+        <testFailureIgnore>true</testFailureIgnore>
+      </configuration>
+    </plugin>
+    ```
+
+    <Note>
+      Setting `testFailureIgnore=true` means `mvn test` will exit with code `0` even when tests fail. This is useful for generating reports in CI but means the pipeline will not block on test failures. Consider enabling failure propagation in stricter pipelines.
+    </Note>
+  </Tab>
+  <Tab title="Cucumber Reporting plugin">
+    The Maven Cucumber Reporting plugin generates an enhanced HTML report from the Cucumber JSON output after the test run.
+
+    | Configuration field         | Description                                                                              |
+    | --------------------------- | ---------------------------------------------------------------------------------------- |
+    | `projectName`               | Display name shown in the report header.                                                 |
+    | `outputDirectory`           | Directory where the report HTML files are written (e.g., `target/cucumber-reports`).    |
+    | `inputDirectory`            | Directory containing the Cucumber JSON result files generated during the test run.       |
+    | `checkFeatureFile`          | When `true`, validates that feature files exist before generating the report.            |
+
+    ```xml pom.xml
+    <plugin>
+      <groupId>net.masterthought</groupId>
+      <artifactId>maven-cucumber-reporting</artifactId>
+      <version>5.7.4</version>
+      <executions>
+        <execution>
+          <id>execution</id>
+          <phase>verify</phase>
+          <goals>
+            <goal>generate</goal>
+          </goals>
+          <configuration>
+            <projectName>APIFramework</projectName>
+            <outputDirectory>target/cucumber-reports</outputDirectory>
+            <inputDirectory>target</inputDirectory>
+            <checkFeatureFile>false</checkFeatureFile>
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+    ```
+  </Tab>
+</Tabs>

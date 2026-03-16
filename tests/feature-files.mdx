@@ -1,0 +1,87 @@
+---
+title: 'Feature files'
+description: 'Gherkin feature files that define the test scenarios for the Places API in plain, human-readable language.'
+---
+
+Feature files are the entry point for every test in a Cucumber BDD framework. They describe *what* the system should do using natural language, keeping tests readable by non-technical stakeholders and developers alike.
+
+## Location
+
+```
+src/test/java/features/placeValidations.feature
+```
+
+All feature files live under `src/test/java/features/`. Cucumber is configured to scan this directory via the `features` path in `TestRunner.java`.
+
+## The full feature file
+
+```gherkin
+Feature: Validating Place APIs
+@AddPlace @Regression
+Scenario Outline: Verify is Place is being successfully added using AddPlaceAPI
+    Given add Place Payload with "<name>" "<language>" "<address>"
+    When user calls "addPlaceAPI" with "POST" http request
+    Then the API call got success with status code 200
+    And "status" in response body is "OK"
+    And "scope" in response body is "APP"
+    And verify place_Id created maps to "<name>" using "getPlaceAPI"
+
+    Examples:
+        | name   | language | address            |
+        | AHouse | English  | World Cross Center |
+
+@DeletePlace @Regression
+Scenario: Verify if Delete Place functionality is working
+    Given DeletePlace Payload
+    When user calls "deletePlaceAPI" with "POST" http request
+    Then the API call got success with status code 200
+    And "status" in response body is "OK"
+```
+
+## The `Feature` keyword
+
+Every Gherkin file starts with `Feature:` followed by a short title. The title is used in reports and test output. All scenarios inside the file belong to this feature. There is exactly one `Feature` block per file.
+
+## Scenarios in this file
+
+### Add Place — Scenario Outline
+
+The Add Place test is written as a **Scenario Outline**, which is the Gherkin construct for data-driven testing. Angle bracket placeholders (`<name>`, `<language>`, `<address>`) inside the steps are substituted at runtime with values from the `Examples` table.
+
+This means adding a new row to the `Examples` table is all that is needed to test the same flow with different inputs — no code changes required.
+
+### Delete Place — Scenario
+
+The Delete Place test is a plain **Scenario** with no parameterisation. It verifies that calling the delete endpoint returns an `OK` status. A `@Before` hook ensures a place exists before the scenario runs, so this test can execute independently.
+
+## Gherkin keywords used
+
+| Keyword | Role |
+|---|---|
+| `Feature` | Groups related scenarios into one file |
+| `Scenario` | A single, concrete test case |
+| `Scenario Outline` | A parameterised test case paired with an `Examples` table |
+| `Given` | Sets up the precondition (e.g., builds the request payload) |
+| `When` | Performs the action (e.g., sends the HTTP request) |
+| `Then` | Asserts the outcome (e.g., checks status code) |
+| `And` | Continues the previous keyword's context to add extra conditions |
+| `Examples` | Provides the data rows for a `Scenario Outline` |
+
+## Data-driven testing with Scenario Outline
+
+`Scenario Outline` combined with `Examples` lets a single scenario run once per data row. Cucumber replaces each `<placeholder>` with the corresponding column value before executing the steps.
+
+```gherkin
+Scenario Outline: Verify is Place is being successfully added using AddPlaceAPI
+    Given add Place Payload with "<name>" "<language>" "<address>"
+    ...
+    Examples:
+        | name   | language | address            |
+        | AHouse | English  | World Cross Center |
+```
+
+For the current `Examples` table with one row, the scenario runs once with `name=AHouse`, `language=English`, and `address=World Cross Center`. Adding more rows scales coverage without duplicating step definitions.
+
+<Tip>
+Scenario Outline is most valuable when you want to verify the same API behaviour across multiple input combinations — for example, testing the Add Place endpoint with names in different languages or addresses in different formats.
+</Tip>

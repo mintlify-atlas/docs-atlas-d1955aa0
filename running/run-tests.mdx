@@ -1,0 +1,94 @@
+---
+title: 'Running tests'
+description: 'How to execute the test suite from the command line or your IDE, and what happens during each run.'
+---
+
+Tests can be run from the Maven command line or directly from your IDE. Both methods invoke the same `TestRunner.java` entry point and produce the same results.
+
+## What happens during a run
+
+When you execute tests, the following sequence occurs:
+
+1. **Maven Surefire** picks up `TestRunner.java` and launches the JUnit runner.
+2. **`@RunWith(Cucumber.class)`** tells JUnit to delegate test execution to Cucumber.
+3. **Cucumber** scans `src/test/java/features` for `.feature` files and matches each step to a method in the `stepDefinitions` package.
+4. **Rest Assured** dispatches the HTTP requests and records pass/fail for each assertion.
+5. After all scenarios finish, Cucumber writes a JSON report to `target/jsonReports/cucumber-report.json`.
+6. If you ran `mvn verify` (not just `mvn test`), the Maven Cucumber Reporting plugin then converts the JSON into an HTML report at `target/cucumber-html-reports/`.
+
+## Run options
+
+<Tabs>
+  <Tab title="Maven">
+    **Run all tests:**
+
+    ```bash
+    mvn test
+    ```
+
+    Executes all scenarios and writes the JSON report. The build exits with code `0` regardless of test failures because `testFailureIgnore=true` is set in `pom.xml`.
+
+    **Run all tests and generate the HTML report:**
+
+    ```bash
+    mvn verify
+    ```
+
+    Runs the `test` phase, then continues to the `verify` phase where the Maven Cucumber Reporting plugin generates the HTML report. Use this command when you need the visual report.
+
+    **Run tests matching a specific tag:**
+
+    ```bash
+    mvn test -Dcucumber.filter.tags="@AddPlace"
+    ```
+
+    Cucumber evaluates the tag expression and only runs matching scenarios. Any valid Cucumber tag expression is accepted:
+
+    ```bash
+    # Run scenarios tagged with both @AddPlace and @Regression
+    mvn test -Dcucumber.filter.tags="@AddPlace and @Regression"
+
+    # Run scenarios tagged with either @AddPlace or @DeletePlace
+    mvn test -Dcucumber.filter.tags="@AddPlace or @DeletePlace"
+
+    # Exclude scenarios tagged @WIP
+    mvn test -Dcucumber.filter.tags="not @WIP"
+    ```
+  </Tab>
+  <Tab title="Eclipse">
+    1. In the **Package Explorer**, expand `src/test/java` → `stepDefinitions`.
+    2. Right-click **`TestRunner.java`**.
+    3. Select **Run As → JUnit Test**.
+
+    Eclipse compiles the project, starts the JUnit runner, and streams pass/fail results to the **JUnit** view. The same JSON report is written to `target/jsonReports/cucumber-report.json`.
+
+    <Note>
+      To run with tag filtering from Eclipse, open **Run Configurations**, select the JUnit configuration for `TestRunner`, and add `-Dcucumber.filter.tags="@YourTag"` to the **VM arguments** field.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Build completed. Check the report for individual test results. |
+| `1` | Build error (compilation failure, missing file, configuration problem). |
+
+Test failures do **not** produce a non-zero exit code. This is controlled by the `testFailureIgnore=true` setting in `pom.xml`:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <configuration>
+        <testFailureIgnore>true</testFailureIgnore>
+    </configuration>
+</plugin>
+```
+
+With this setting, Maven continues past a failing test phase instead of stopping the build. This ensures the `verify` phase always runs and the HTML report is always generated, even when scenarios fail. To make test failures break the build, set `testFailureIgnore` to `false`.
+
+<Tip>
+  Use `mvn verify` as your default command in CI pipelines. It produces both the JSON and HTML reports and ensures the reporting plugin always runs.
+</Tip>

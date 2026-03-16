@@ -1,0 +1,72 @@
+---
+title: 'API resources'
+description: 'The APIResources enum centralizes all endpoint paths, giving step definitions a single place to look up and maintain API routes.'
+---
+
+`APIResources` is a Java enum that maps logical API names to their URL paths. Storing paths in an enum prevents string literals from being scattered across test files and makes it easy to update a path in one place.
+
+## Why an enum
+
+Using an enum for endpoint paths provides three advantages:
+
+- **Compile-time safety** — referencing a constant that does not exist produces a build error rather than a runtime failure.
+- **Centralised maintenance** — changing a path requires editing one file.
+- **Readable lookups** — `APIResources.valueOf("addPlaceAPI")` is self-documenting in step definition code.
+
+## Enum constants
+
+| Constant | Path |
+|---|---|
+| `addPlaceAPI` | `/maps/api/place/add/json` |
+| `getPlaceAPI` | `/maps/api/place/get/json` |
+| `deletePlaceAPI` | `/maps/api/place/delete/json` |
+
+## The `getResource()` method
+
+`getResource()` returns the path string stored in the enum constant. It is called in `StepDefinition` to build the request URL:
+
+```java
+APIResources resourceAPI = APIResources.valueOf(resource);
+// ...
+response = requestAdd.when().post(resourceAPI.getResource());
+```
+
+`APIResources.valueOf(resource)` converts the string passed in the Gherkin step (e.g., `"addPlaceAPI"`) to the matching enum constant, then `getResource()` retrieves the path.
+
+## Source code
+
+```java APIResources.java
+package resources;
+
+public enum APIResources {
+    addPlaceAPI("/maps/api/place/add/json"),
+    getPlaceAPI("/maps/api/place/get/json"),
+    deletePlaceAPI("/maps/api/place/delete/json");
+    
+    private String resource;
+    
+    APIResources(String resource) {
+        this.resource = resource;
+    }
+    
+    public String getResource() {
+        return resource;
+    }
+}
+```
+
+## Adding a new endpoint
+
+To add a new API endpoint, append a new constant to the enum:
+
+```java
+public enum APIResources {
+    addPlaceAPI("/maps/api/place/add/json"),
+    getPlaceAPI("/maps/api/place/get/json"),
+    deletePlaceAPI("/maps/api/place/delete/json"),
+    updatePlaceAPI("/maps/api/place/update/json");  // new endpoint
+    // ...
+}
+```
+
+The new constant is immediately available to any step definition via `APIResources.valueOf("updatePlaceAPI")`.

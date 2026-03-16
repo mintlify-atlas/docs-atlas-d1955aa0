@@ -1,0 +1,75 @@
+---
+title: 'Test runner'
+description: 'TestRunner.java is the JUnit entry point that wires Cucumber to the feature files, step definitions, and reporting plugin.'
+---
+
+`TestRunner` is an empty class annotated with JUnit and Cucumber configuration. It has no methods — all behaviour is driven by its annotations.
+
+## Annotations
+
+### `@RunWith(Cucumber.class)`
+
+Tells JUnit to use the Cucumber test runner instead of the default JUnit runner. This is what makes JUnit discover and execute `.feature` files rather than `@Test` methods.
+
+### `@CucumberOptions`
+
+Configures how Cucumber finds and runs tests.
+
+| Option | Value | Purpose |
+|---|---|---|
+| `features` | `"src/test/java/features"` | Directory where Cucumber looks for `.feature` files |
+| `plugin` | `"json:target/jsonReports/cucumber-report.json"` | Generates a JSON report at the specified path after the run |
+| `glue` | `{"stepDefinitions"}` | Package containing step definitions and hooks |
+
+## Full source code
+
+```java TestRunner.java
+package cucumber.Options;
+
+import io.cucumber.junit.Cucumber;
+import io.cucumber.junit.CucumberOptions;
+import org.junit.runner.RunWith;
+
+@RunWith(Cucumber.class)
+@CucumberOptions(
+    features = "src/test/java/features",
+    plugin = "json:target/jsonReports/cucumber-report.json",
+    glue = {"stepDefinitions"}
+)
+public class TestRunner {
+}
+```
+
+## Running in Eclipse
+
+1. Right-click `TestRunner.java` in the Package Explorer.
+2. Select **Run As** > **JUnit Test**.
+
+Cucumber will discover all `.feature` files under `src/test/java/features`, match steps to the `stepDefinitions` package, and write the JSON report to `target/jsonReports/cucumber-report.json`.
+
+## Adding tag filtering
+
+To run only scenarios with a specific tag, add the `tags` option to `@CucumberOptions`:
+
+```java
+@CucumberOptions(
+    features = "src/test/java/features",
+    plugin = "json:target/jsonReports/cucumber-report.json",
+    glue = {"stepDefinitions"},
+    tags = "@DeletePlace"
+)
+public class TestRunner {
+}
+```
+
+You can combine tags with boolean operators:
+
+```java
+// Run scenarios tagged @Smoke but not @Slow
+tags = "@Smoke and not @Slow"
+
+// Run scenarios tagged either @AddPlace or @DeletePlace
+tags = "@AddPlace or @DeletePlace"
+```
+
+Remove the `tags` option (or leave it empty) to run all scenarios.
